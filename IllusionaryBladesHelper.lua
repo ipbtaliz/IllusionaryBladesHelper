@@ -96,10 +96,21 @@ function IllusionaryBladesHelper:OnDocLoaded()
 		-- Register handlers for events, slash commands and timer, etc.
 		-- e.g. Apollo.RegisterEventHandler("KeyDown", "OnKeyDown", self)
 		Apollo.RegisterSlashCommand("ibhelp", "OnIllusionaryBladesHelperOn", self)
-		
+
+		-- initialize a bunch of variables to reduce calls later on
 		self.checkBoxes = {}
 		self.checkBoxes[1] = self.wndMain:FindChild("buttonWarning")
 		self.checkBoxes[2] = self.wndMain:FindChild("buttonFlash")
+		self.checkBoxes[3] = self.wndMain:FindChild("buttonSounds")
+		
+		self.iconSizeBox = self.wndMain:FindChild("iconSizeBox")
+		self.timerIntervalBox = self.wndMain:FindChild("timerIntervalBox")
+		self.textStack = self.wndWidget:FindChild("textStack")
+		self.textCD = self.wndWidget:FindChild("textCD")
+		self.warningCD = self.wndWarning:FindChild("warningCD")
+		self.warningStack = self.wndWarning:FindChild("warningStack")
+		
+		self.shouldPlaySound=0
 		-- Default settings for various things
 		self:setDefaultSettings()
 
@@ -110,16 +121,18 @@ function IllusionaryBladesHelper:OnDocLoaded()
 		self.Buttons = {}
 		self.Buttons[1] = self.checkBoxes[1]:IsChecked()
 		self.Buttons[2] = self.checkBoxes[2]:IsChecked()
-		-- Populate combo box to choose icon size
-		self.wndMain:FindChild("iconSizeBox"):AddItem("72", "72")
-		self.wndMain:FindChild("iconSizeBox"):AddItem("64", "64")
-		self.wndMain:FindChild("iconSizeBox"):AddItem("48", "48")
-		self.wndMain:FindChild("iconSizeBox"):AddItem("32", "32")
-		-- Populate combo box to choose icon size
-		self.wndMain:FindChild("timerIntervalBox"):AddItem("0.5", "0.5")
-		self.wndMain:FindChild("timerIntervalBox"):AddItem("0.33", "0.33")
-		self.wndMain:FindChild("timerIntervalBox"):AddItem("0.2", "0.2")
-		self.wndMain:FindChild("timerIntervalBox"):AddItem("0.1", "0.1")
+		self.Buttons[3] = self.checkBoxes[3]:IsChecked()
+		-- Populate combo box to choose widget icon size
+
+		self.iconSizeBox:AddItem("72", "72")
+		self.iconSizeBox:AddItem("64", "64")
+		self.iconSizeBox:AddItem("48", "48")
+		self.iconSizeBox:AddItem("32", "32")
+		-- Populate combo box to choose  timer interval
+		self.timerIntervalBox:AddItem("0.5", "0.5")
+		self.timerIntervalBox:AddItem("0.33", "0.33")
+		self.timerIntervalBox:AddItem("0.2", "0.2")
+		self.timerIntervalBox:AddItem("0.1", "0.1")
 		--self:fillOptionsWindow()		
 
 
@@ -157,6 +170,7 @@ function IllusionaryBladesHelper:OnSave(eLevel)
 	tsave.Buttons = {}
 	tsave.Buttons[1] = self.Buttons[1]
 	tsave.Buttons[2] = self.Buttons[2]
+	tsave.Buttons[3] = self.Buttons[3]
 	tsave.iconOffsets = {}
 	tsave.iconOffsets[1] = iLeft
 	tsave.iconOffsets[2] = iTop
@@ -168,7 +182,7 @@ function IllusionaryBladesHelper:OnSave(eLevel)
 	tsave.warningOffsets[3] = wRight
 	tsave.warningOffsets[4] = wBottom
 	tsave.timerInterval = {}
-	tsave.timerInterval[1] =tonumber(self.wndMain:FindChild("timerIntervalBox"):GetText())
+	tsave.timerInterval[1] =tonumber(self.timerIntervalBox:GetText())
 	
 	return tsave
 end
@@ -184,13 +198,14 @@ function IllusionaryBladesHelper:UpdateSettings()
 	--I update the value of Buttons after I've pressed OK
 	self.Buttons[1] = self.checkBoxes[1]:IsChecked()
 	self.Buttons[2] = self.checkBoxes[2]:IsChecked()
+	self.Buttons[3] = self.checkBoxes[3]:IsChecked()
 	-- Updating iconsize
-	local iSize= tonumber(self.wndMain:FindChild("iconSizeBox"):GetText())
+	local iSize= tonumber(self.iconSizeBox:GetText())
 	local iLeft, iTop, iRight, iBottom=self.wndWidget:GetAnchorOffsets()
 	iLeft=iRight - iSize -4
 	iTop =iBottom - iSize  -4
 	self.wndWidget:SetAnchorOffsets(iLeft,iTop,iRight,iBottom)
-	self.wndWidget:FindChild("textStack"):SetAnchorOffsets(iSize-12,iSize-18,iSize+2,iSize+2)
+	self.textStack:SetAnchorOffsets(iSize-12,iSize-18,iSize+2,iSize+2)
 	self.timer = ApolloTimer.Create(self.timerInterval, true, "OnRefresh", self)
 	self.timer:Stop()
 end
@@ -198,10 +213,11 @@ end
 function IllusionaryBladesHelper:setDefaultSettings()
 	self.checkBoxes[1]:SetCheck(true)
 	self.checkBoxes[2]:SetCheck(true)
+	self.checkBoxes[3]:SetCheck(true)
 	self.wndWidget:SetAnchorOffsets(806,580,882,656)
 	self.wndWarning:SetAnchorOffsets(404,43,904,243)
-	self.wndMain:FindChild("iconSizeBox"):SetText("72")
-	self.wndMain:FindChild("timerIntervalBox"):SetText("0.1")
+	self.iconSizeBox:SetText("72")
+	self.timerIntervalBox:SetText("0.1")
 end
 
 function IllusionaryBladesHelper:restoreSettings()
@@ -214,6 +230,9 @@ function IllusionaryBladesHelper:restoreSettings()
 		end
 		if self.tSavedData["Buttons"] ~= nil and self.tSavedData["Buttons"][2] ~= nil then
 			self.checkBoxes[2]:SetCheck(self.tSavedData["Buttons"][2])
+		end
+		if self.tSavedData["Buttons"] ~= nil and self.tSavedData["Buttons"][3] ~= nil then
+			self.checkBoxes[3]:SetCheck(self.tSavedData["Buttons"][3])
 		end
 		if self.tSavedData["iconOffsets"] ~= nil and self.tSavedData["iconOffsets"][1] ~= nil then
 			iLeft=self.tSavedData["iconOffsets"][1]
@@ -230,8 +249,8 @@ function IllusionaryBladesHelper:restoreSettings()
 		if iLeft ~= nil and iTop ~= nil and iRight ~= nil and iBottom ~= nil then
 			self.wndWidget:SetAnchorOffsets(iLeft,iTop,iRight,iBottom)
 			local iSize = iRight-iLeft -4
-			self.wndMain:FindChild("iconSizeBox"):SetText(tostring(iSize))
-			self.wndWidget:FindChild("textStack"):SetAnchorOffsets(iSize-12,iSize-18,iSize+2,iSize+2)
+			self.iconSizeBox:SetText(tostring(iSize))
+			self.textStack:SetAnchorOffsets(iSize-12,iSize-18,iSize+2,iSize+2)
 		end
 		if self.tSavedData["warningOffsets"] ~= nil and self.tSavedData["warningOffsets"][1] ~= nil then
 			wLeft=self.tSavedData["warningOffsets"][1]
@@ -252,7 +271,7 @@ function IllusionaryBladesHelper:restoreSettings()
 			self.timerInterval = self.tSavedData["timerInterval"][1]
 			self.timer = ApolloTimer.Create(self.timerInterval, true, "OnRefresh", self)
 			self.timer:Stop()
-			self.wndMain:FindChild("timerIntervalBox"):SetText(tostring(self.timerInterval))
+			self.timerIntervalBox:SetText(tostring(self.timerInterval))
 		end
 			
 	end
@@ -274,10 +293,10 @@ function IllusionaryBladesHelper:OnUnitEnteredCombat(unit, bInCombat)
 			self.timer:Start()
 		else
 			self.timer:Stop()
-			self.wndWidget:FindChild("textStack"):SetTextColor("white")
-			self.wndWidget:FindChild("textStack"):SetText("")
-			self.wndWidget:FindChild("textCD"):SetTextColor("white")
-			self.wndWidget:FindChild("textCD"):SetText("")
+			self.textStack:SetTextColor("white")
+			self.textStack:SetText("")
+			self.textCD:SetTextColor("white")
+			self.textCD:SetText("")
 			self.wndWarning:Show(false)
 		end
 	end
@@ -290,53 +309,62 @@ function IllusionaryBladesHelper:AnalizeBuffs(buffs)
 		if(buff.splEffect:GetId()==83137) then
 			i = 1
 			if buff["nCount"]==5 then
-				self.wndWidget:FindChild("textStack"):SetTextColor("blue")
+				self.textStack:SetTextColor("blue")
 			
 			elseif buff["nCount"]==1 then
-				self.wndWidget:FindChild("textStack"):SetTextColor("red")
+				self.textStack:SetTextColor("red")
 			else
-				self.wndWidget:FindChild("textStack"):SetTextColor("white")
+				self.textStack:SetTextColor("white")
 			end
-			self.wndWidget:FindChild("textStack"):SetText(tostring(buff["nCount"]))
+			self.textStack:SetText(tostring(buff["nCount"]))
 		end
 		if(buff.splEffect:GetId()==83557) then
 			if buff["fTimeRemaining"]<3.8 then
-				self.wndWidget:FindChild("textCD"):SetTextColor("red")
+				self.textCD:SetTextColor("red")
 				if self.Buttons[1] then
+					if self.Buttons[3] and self.shouldPlaySound == 0 then
+						Sound.Play(214)
+						Sound.Play(216)
+						self.shouldPlaySound = 1
+					end
 					self:ShowWarning(buff["fTimeRemaining"])
 				end
 			else
-				self.wndWidget:FindChild("textCD"):SetTextColor("white")
+				self.shouldPlaySound = 0
+				self.textCD:SetTextColor("white")
 				self.wndWarning:Show(false)
 			end
-			self.wndWidget:FindChild("textCD"):SetText(("%.f"):format(buff["fTimeRemaining"]))
+			self.textCD:SetText(("%.f"):format(buff["fTimeRemaining"]))
 		end	
 	end
 	if(i==0) then
-		self.wndWidget:FindChild("textStack"):SetTextColor("red")
-		self.wndWidget:FindChild("textStack"):SetText("0")
+		self.textStack:SetTextColor("red")
+		self.textStack:SetText("0")
 	end
 end
 
 function IllusionaryBladesHelper:ShowWarning(timeRemaining)
-	self.wndWarning:FindChild("warningCD"):SetTextColor("white")
-	self.wndWarning:FindChild("warningCD"):SetText("Illusions expiring in "..("%.1f"):format(timeRemaining))
+	self.warningCD:SetTextColor("white")
+	self.warningCD:SetText("Illusions expiring in "..("%.1f"):format(timeRemaining))
 	if timeRemaining<0.6 then
-		self.wndWarning:FindChild("warningCD"):SetTextColor("red")
-		self.wndWarning:FindChild("warningCD"):SetText("Illusions EXPIRING NOW!!!")
+		self.warningCD:SetTextColor("red")
+		self.warningCD:SetText("Illusions EXPIRING NOW!!!")
 	end
 	self.wndWarning:Show(true)
 end
 
 function IllusionaryBladesHelper:checkSpellIsPresent()
-	for key, ability in ipairs(AbilityBook.GetAbilitiesList()) do
-		if ability.bIsActive and ability.strName == "Illusionary Blades" and ability.nCurrentTier > 1 then
-			self.wndWidget:Show(true)
-			return 1
+	local abilitiesList = AbilityBook.GetAbilitiesList()
+	if abilitiesList ~= nil then
+		for key, ability in ipairs(abilitiesList) do
+			if ability.bIsActive and ability.strName == "Illusionary Blades" and ability.nCurrentTier > 1 then
+				self.wndWidget:Show(true)
+				return 1
+			end
 		end
+		self.wndWidget:Show(false)
+		return 0
 	end
-	self.wndWidget:Show(false)
-	return 0
 end
 
 function IllusionaryBladesHelper:OnAbilityBookChange()
@@ -375,7 +403,13 @@ end
 function IllusionaryBladesHelper:buttonFlashOnUncheck()
 
 end
+function IllusionaryBladesHelper:buttonSoundsOnCheck()
 
+end
+
+function IllusionaryBladesHelper:buttonSoundsOnUncheck()
+
+end
 function IllusionaryBladesHelper:buttonWarningClick()
 	if self.wndMain:FindChild("buttonMvWarning"):GetText()=="Move Warnings" then
 		
@@ -383,9 +417,9 @@ function IllusionaryBladesHelper:buttonWarningClick()
 		self.wndWarning:SetStyle("Moveable",1)
 		self.wndWarning:SetStyle("Picture",1)
 		--self.wndWarning:SetStyle("Sizeable",1)
-		self.wndWarning:FindChild("warningCD"):SetTextColor("white")
-		self.wndWarning:FindChild("warningCD"):SetText("Remember to save by pressing OK")
-		self.wndWarning:FindChild("warningStack"):SetText("Second Warning bar")
+		self.warningCD:SetTextColor("white")
+		self.warningCD:SetText("Remember to save by pressing OK")
+		self.warningStack:SetText("Second Warning bar")
 		
 		self.wndMain:FindChild("buttonMvWarning"):SetText("Done Moving")
 		return
@@ -395,8 +429,8 @@ function IllusionaryBladesHelper:buttonWarningClick()
 		self.wndWarning:RemoveStyle("Moveable")
 		self.wndWarning:RemoveStyle("Picture")
 		--self.wndWarning:RemoveStyle("Sizeable")
-		self.wndWarning:FindChild("warningCD"):SetText("")
-		self.wndWarning:FindChild("warningStack"):SetText("")
+		self.warningCD:SetText("")
+		self.warningStack:SetText("")
 		self.wndMain:FindChild("buttonMvWarning"):SetText("Move Warnings")
 		return
 	end
